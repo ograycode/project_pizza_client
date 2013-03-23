@@ -41,6 +41,32 @@ type command struct {
 	err         string
 }
 
+func (self *command) execute() error {
+	var err error
+	err = nil
+	if self.needed_file.name != "" {
+		err = download_file(self.needed_file.name,
+			self.needed_file.url,
+			self.needed_file.destination)
+		if err != nil {
+			self.pass = false
+			self.err = err.Error()
+			log.Printf("Error downloading file: %s", self.err)
+			return err
+		}
+	}
+	var err_string string
+	err, err_string = execute_command(self.exec)
+	if err != nil {
+		self.pass = false
+		self.err = err_string
+	} else {
+		self.pass = true
+		self.err = ""
+	}
+	return err
+}
+
 //files to be downloaded
 type file struct {
 	url         string
@@ -59,6 +85,18 @@ type validate_command struct {
 	err             string
 }
 
+func (self *validate_command) execute() error {
+	err, err_string := execute_command(self.exec)
+	if err != nil {
+		self.err = err.Error() + ": " + err_string
+		self.pass = false
+	} else {
+		self.err = ""
+		self.pass = true
+	}
+	return err
+}
+
 //Recieves commands from the server and kicks off the executing them
 func cmd_handler(rw http.ResponseWriter, req *http.Request) {
 	s_cmds := req.FormValue("c")
@@ -69,6 +107,26 @@ func cmd_handler(rw http.ResponseWriter, req *http.Request) {
 	} else {
 		run_cmds(cmds.commands)
 	}
+}
+
+//Find the position of the cmd given a specified target order
+func find_cmd_by_order(c []command, target int) int {
+	for i := 0; i < len(c); i++ {
+		if c[i].order == target {
+			return i
+		}
+	}
+	return -1
+}
+
+//Find the position of a given validator given a specified target order
+func find_validator_by_order(c []validate_command, target int) int {
+	for i := 0; i < len(c); i++ {
+		if c[i].order == target {
+			return i
+		}
+	}
+	return -1
 }
 
 //Executes commands
@@ -82,53 +140,24 @@ func run_cmds(cmds []command) {
 	//TODO: Optimize, because this is super-slow
 	for j := 0; j < len(cmds) && executed && err == nil; j++ {
 		executed = false
-		for i := 0; i < len(cmds) && !executed; i++ {
-			if order == cmds[i].order {
-				executed = true
-				if cmds[i].needed_file.name != "" {
-					err = download_file(cmds[i].needed_file.name, cmds[i].needed_file.url, cmds[i].needed_file.destination)
-					if err != nil {
-						cmds[i].pass = false
-						cmds[i].err = err.Error()
-						log.Printf("Error downloading file: %s", cmds[i].err)
-						break
-					}
-				}
-				//Execute the command
-				//If we fail, quickly break out
-				//Else validate
-				var err_string string
-				err, err_string = execute_command(cmds[i].exec)
-				if err != nil {
-					cmds[i].pass = false
-					cmds[i].err = err.Error() + ": " + err_string
-					break
-				} else {
-					cmds[i].pass = true
+		i := find_cmd_by_order(cmds, order)
+		if i > -1 {
+			executed = true
+			err := cmds[i].execute()
 
-					//set up validation
-					v_order := 1
-					v_length := len(cmds[i].validates)
-					v_should_continue := true
-
-					//loop through validations running them in the correct order
-					for v_index := 0; v_index < v_length && v_should_continue; v_index++ {
-						v_exec := false
-						for v_inner_index := 0; v_inner_index < v_length && !v_exec && v_should_continue; v_inner_index++ {
-							val := cmds[i].validates[v_inner_index]
-							if val.order == v_order {
-								val = validate(val)
-								if !val.pass {
-									v_should_continue = false
-								} else {
-									v_exec = true
-								}
-								cmds[i].validates[v_inner_index] = val
-							}
-						}
-						v_order++
-					}
+			//set up validation
+			v_order := 1
+			v_length := len(cmds[i].validates)
+			v_validated := true
+			//loop through validations running them in the correct order
+			for v_index := 0; v_index < v_length && v_validated && err == nil; v_index++ {
+				v_validated = false
+				index := find_validator_by_order(cmds[i].validates, v_order)
+				if index > -1 {
+					v_validated = true
+					err = cmds[i].validates[index].execute()
 				}
+				v_order++
 			}
 		}
 		order++
@@ -207,19 +236,6 @@ func download_file(file_name string, url string, destination string) error {
 	}
 
 	return nil
-}
-
-//Validates commands
-func validate(cmd validate_command) validate_command {
-	err, err_string := execute_command(cmd.exec)
-	if err != nil {
-		cmd.err = err.Error() + ": " + err_string
-		cmd.pass = false
-	} else {
-		cmd.err = ""
-		cmd.pass = true
-	}
-	return cmd
 }
 
 //execute command

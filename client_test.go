@@ -11,7 +11,7 @@ func Test_Validate(t *testing.T) {
 	val.err = ""
 	val.pass = false
 
-	val = validate(val)
+	val.execute()
 
 	if !val.pass {
 		t.Errorf("Err: %s", val.err)
