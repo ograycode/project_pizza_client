@@ -9,17 +9,27 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
 var env _env
+var app_config configuration
 
 //Holds local enviornmental information
 type _env struct {
 	Port       string
 	Version    string
 	Cmd_Server string
+	OS         string
 	Info       []string
+}
+
+type configuration struct {
+	master_server     string
+	port              string
+	terminal_location string
+	terminal_flags    string
 }
 
 //Message received from server
@@ -242,7 +252,9 @@ func download_file(file_name string, url string, destination string) error {
 func execute_command(cmd string) (error, string) {
 	var error_string string
 	error_string = ""
-	ex := exec.Command("/bin/sh", "-c", cmd)
+	ex := exec.Command(app_config.terminal_location,
+		app_config.terminal_flags,
+		cmd)
 	//pipe stderr
 	stderr, err := ex.StderrPipe()
 	if err != nil {
@@ -274,13 +286,51 @@ func get_env(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func load_configuration() error {
+	bytes, err := ioutil.ReadFile("app.confg")
+	if err == nil {
+		err = json.Unmarshal(bytes, &app_config)
+		if err != nil {
+			return err
+		}
+	}
+
+	//set defaults if missing
+	if env.OS == "linux" {
+		if app_config.terminal_location == "" {
+			app_config.terminal_location = "/bin/sh"
+		}
+		app_config.terminal_flags = "-c"
+	} else {
+		//pray we are on windows, for now
+		if app_config.terminal_location == "" {
+			app_config.terminal_location = "C:\\Windows\\System32\\cmd.exe"
+		}
+		app_config.terminal_flags = "/c"
+	}
+
+	if app_config.port == "" {
+		app_config.port = ":8082"
+		env.Port = app_config.port
+	}
+	return err
+}
+
 //Kicks off the program
 func main() {
+
+	log.Println("Loading configuration")
+	err := load_configuration()
+	if err != nil {
+		log.Fatalf("Error loading configuration data: %s", err.Error())
+	}
+
 	//Setup environmental info
 	log.Println("Retrieving environmental information.")
-	env.Port = ":8082"
+	env.Port = app_config.port
 	env.Version = "0.0.1"
 	env.Info = os.Environ()
+	env.OS = runtime.GOOS
 
 	//Set up server
 	log.Println("Setting up server.")

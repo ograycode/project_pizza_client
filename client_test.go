@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -15,11 +16,32 @@ func Test_download_file(t *testing.T) {
 	}
 }
 
+//Tests loading the configuration
+func Test_load_configuration(t *testing.T) {
+	err := load_configuration()
+	if err != nil {
+		t.Logf("Failed to load configuration: %s", err)
+		t.Logf("app_config.terminal_location: %s", app_config.terminal_location)
+		t.Logf("app_config.terminal_flags: %s", app_config.terminal_flags)
+		t.Logf("app_config.port: %s", app_config.port)
+		t.Logf("app_config.master_server: %s", app_config.master_server)
+	}
+}
+
 //Tests validates execution function
 func Test_Validate(t *testing.T) {
+
+	exec := ""
+
+	if runtime.GOOS == "linux" {
+		exec = "touch test/validator.test"
+	} else {
+		exec = "echo \"\" > test/validator.test"
+	}
+
 	var val validate_command
 	val.description = "Test command"
-	val.exec = "touch test/validator.test"
+	val.exec = exec
 	val.err = ""
 	val.pass = false
 
@@ -32,9 +54,18 @@ func Test_Validate(t *testing.T) {
 
 //Tests Command's executrion function
 func Test_Cmd(t *testing.T) {
+
+	exec := ""
+
+	if runtime.GOOS == "linux" {
+		exec = "touch test/cmd.test"
+	} else {
+		exec = "echo \"\" > test/cmd.test"
+	}
+
 	var cmd command
 	cmd.description = "Test"
-	cmd.exec = "touch test/cmd.test"
+	cmd.exec = exec
 	cmd.err = ""
 	cmd.pass = false
 
