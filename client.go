@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var env _env
@@ -30,6 +31,13 @@ type configuration struct {
 	port              string
 	terminal_location string
 	terminal_flags    string
+	uuid              string
+	registered        bool
+}
+
+//Saves the current configuration, over-writing what was present
+func (self *configuration) save() error {
+	return ioutil.WriteFile("app.confg", json.Marshal(self), os.ModePerm)
 }
 
 //Message received from server
@@ -316,6 +324,38 @@ func load_configuration() error {
 	return err
 }
 
+//Checks in with the server
+func check_in() {
+	server := app_config.master_server + "/clients/checkin"
+	post_json_to_server(server, "{\"status\": \"OK\", \"uuid\": \""+app_config.uuid+"\"}")
+	time.Sleep(1 * time.Hour)
+	check_in()
+}
+
+//Registers with the server
+func register_with_server_if_needed() {
+	if !app_config.registered {
+		log.Println("Registering with server")
+		server := app_config.master_server + "/clients/register"
+		err := post_json_to_server(server, "body")
+		if err != nil {
+			app_config.registered = false
+			log.Println("Failed to register with server: %s", err.Error())
+			go retry_registering_with_server()
+		} else {
+			app_config.registered = true
+			app_config.save()
+		}
+	}
+}
+
+//Retries to register with the server after a given time period
+func retry_registering_with_server() {
+	retry_in := 15 * time.Minute
+	time.Sleep(retry_in)
+	register_with_server_if_needed()
+}
+
 //Kicks off the program
 func main() {
 
@@ -331,6 +371,10 @@ func main() {
 	env.Version = "0.0.1"
 	env.Info = os.Environ()
 	env.OS = runtime.GOOS
+
+	register_with_server_if_needed()
+
+	go check_in()
 
 	//Set up server
 	log.Println("Setting up server.")
