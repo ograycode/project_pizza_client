@@ -37,7 +37,8 @@ type configuration struct {
 
 //Saves the current configuration, over-writing what was present
 func (self *configuration) save() error {
-	return ioutil.WriteFile("app.confg", json.Marshal(self), os.ModePerm)
+	j, _ := json.Marshal(self)
+	return ioutil.WriteFile("app.confg", j, os.ModePerm)
 }
 
 //Message received from server
@@ -117,9 +118,9 @@ func (self *validate_command) execute() error {
 
 //Recieves commands from the server and kicks off the executing them
 func cmd_handler(rw http.ResponseWriter, req *http.Request) {
-	s_cmds := req.FormValue("c")
-	cmds := message{}
-	err := json.Unmarshal([]byte(s_cmds), &cmds)
+	decoder := json.NewDecoder(req.Body)
+	var cmds message
+	err := decoder.Decode(&cmds)
 	if err != nil {
 		log.Println(err)
 	} else {
@@ -321,7 +322,7 @@ func load_configuration() error {
 		app_config.port = ":8082"
 		env.Port = app_config.port
 	}
-	return err
+	return nil
 }
 
 //Checks in with the server
