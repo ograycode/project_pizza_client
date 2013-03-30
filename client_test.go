@@ -39,16 +39,16 @@ func Test_Validate(t *testing.T) {
 		exec = "echo \"\" > test/validator.test"
 	}
 
-	var val validate_command
-	val.description = "Test command"
-	val.exec = exec
-	val.err = ""
-	val.pass = false
+	var val Validate_command
+	val.Description = "Test command"
+	val.Exec = exec
+	val.Err = ""
+	val.Pass = false
 
-	val.execute()
+	val.Execute()
 
-	if !val.pass {
-		t.Errorf("Err: %s", val.err)
+	if !val.Pass {
+		t.Errorf("Err: %s", val.Err)
 	}
 }
 
@@ -63,31 +63,31 @@ func Test_Cmd(t *testing.T) {
 		exec = "echo \"\" > test/cmd.test"
 	}
 
-	var cmd command
-	cmd.description = "Test"
-	cmd.exec = exec
-	cmd.err = ""
-	cmd.pass = false
+	var cmd Command
+	cmd.Description = "Test"
+	cmd.Exec = exec
+	cmd.Err = ""
+	cmd.Pass = false
 
-	cmd.execute()
+	cmd.Execute()
 
-	if !cmd.pass {
-		t.Errorf("Command err: %s", cmd.err)
+	if !cmd.Pass {
+		t.Errorf("Command err: %s", cmd.Err)
 	}
 }
 
 //Tests find_validator_by_order as well find_cmd_by_order
 func Test_find_by_order(t *testing.T) {
 	//Start testing find_validator_by_order
-	var val1 validate_command
-	var val2 validate_command
-	var val3 validate_command
+	var val1 Validate_command
+	var val2 Validate_command
+	var val3 Validate_command
 
-	val1.order = 1
-	val2.order = 2
-	val3.order = 3
+	val1.Order = 1
+	val2.Order = 2
+	val3.Order = 3
 
-	vals := []validate_command{val1, val2, val3}
+	vals := []Validate_command{val1, val2, val3}
 
 	expected_position := 1
 	position := find_validator_by_order(vals, 2)
@@ -102,15 +102,15 @@ func Test_find_by_order(t *testing.T) {
 	}
 
 	//Start  testing find_cmd_by_order
-	var cmd1 command
-	var cmd2 command
-	var cmd3 command
+	var cmd1 Command
+	var cmd2 Command
+	var cmd3 Command
 
-	cmd1.order = 1
-	cmd2.order = 5
-	cmd3.order = 3
+	cmd1.Order = 1
+	cmd2.Order = 5
+	cmd3.Order = 3
 
-	cmds := []command{cmd1, cmd2, cmd3}
+	cmds := []Command{cmd1, cmd2, cmd3}
 
 	expected_position = 2
 	position = find_cmd_by_order(cmds, 3)
