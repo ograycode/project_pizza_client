@@ -43,75 +43,75 @@ func (self *configuration) save() error {
 
 //Message received from server
 type message struct {
-	versoin  string
-	commands []command
+	Version  string
+	Commands []Command
 }
 
 //Commands containing information on package management
-type command struct {
-	version     string
-	description string
-	cmd_type    string
-	order       int
-	exec        string
-	validates   []validate_command
-	needed_file file
-	pass        bool
-	err         string
+type Command struct {
+	Version     string
+	Description string
+	Cmd_type    string
+	Order       int
+	Exec        string
+	Validates   []Validate_command
+	Needed_file File
+	Pass        bool
+	Err         string
 }
 
-func (self *command) execute() error {
+func (self *Command) Execute() error {
 	var err error
 	err = nil
-	if self.needed_file.name != "" {
-		err = download_file(self.needed_file.name,
-			self.needed_file.url,
-			self.needed_file.destination)
+	if self.Needed_file.Name != "" {
+		err = download_file(self.Needed_file.Name,
+			self.Needed_file.Url,
+			self.Needed_file.Destination)
 		if err != nil {
-			self.pass = false
-			self.err = err.Error()
-			log.Printf("Error downloading file: %s", self.err)
+			self.Pass = false
+			self.Err = err.Error()
+			log.Printf("Error downloading file: %s", self.Err)
 			return err
 		}
 	}
 	var err_string string
-	err, err_string = execute_command(self.exec)
+	err, err_string = execute_command(self.Exec)
 	if err != nil {
-		self.pass = false
-		self.err = err_string
+		self.Pass = false
+		self.Err = err_string
 	} else {
-		self.pass = true
-		self.err = ""
+		self.Pass = true
+		self.Err = ""
 	}
 	return err
 }
 
 //files to be downloaded
-type file struct {
-	url         string
-	destination string
-	name        string
+type File struct {
+	Url         string
+	Destination string
+	Name        string
 }
 
 //Validations of successfully command completion
-type validate_command struct {
-	description     string
-	order           int
-	cmd_type        string
-	exec            string
-	expected_result string
-	pass            bool
-	err             string
+type Validate_command struct {
+	Description     string
+	Order           int
+	Cmd_type        string
+	Exec            string
+	Expected_result string
+	Pass            bool
+	Err             string
 }
 
-func (self *validate_command) execute() error {
-	err, err_string := execute_command(self.exec)
+func (self *Validate_command) Execute() error {
+	err, err_string := execute_command(self.Exec)
 	if err != nil {
-		self.err = err.Error() + ": " + err_string
-		self.pass = false
+		self.Err = err.Error() + ": " + err_string
+		self.Pass = false
 	} else {
-		self.err = ""
-		self.pass = true
+		self.Err = ""
+		self.Pass = true
 	}
 	return err
 }
@@ -121,17 +121,22 @@ func cmd_handler(rw http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	var cmds message
 	err := decoder.Decode(&cmds)
+	response := "OK"
 	if err != nil {
 		log.Println(err)
+		response = err.Error()
+		rw.Write([]byte(response))
 	} else {
-		run_cmds(cmds.commands)
+		log.Println(cmds.Version)
+		rw.Write([]byte(response))
+		go run_cmds(cmds.Commands)
 	}
 }
 
 //Find the position of the cmd given a specified target order
-func find_cmd_by_order(c []command, target int) int {
+func find_cmd_by_order(c []Command, target int) int {
 	for i := 0; i < len(c); i++ {
-		if c[i].order == target {
+		if c[i].Order == target {
 			return i
 		}
 	}
@@ -139,9 +144,9 @@ func find_cmd_by_order(c []command, target int) int {
 }
 
 //Find the position of a given validator given a specified target order
-func find_validator_by_order(c []validate_command, target int) int {
+func find_validator_by_order(c []Validate_command, target int) int {
 	for i := 0; i < len(c); i++ {
-		if c[i].order == target {
+		if c[i].Order == target {
 			return i
 		}
 	}
@@ -149,7 +154,7 @@ func find_validator_by_order(c []validate_command, target int) int {
 }
 
 //Executes commands
-func run_cmds(cmds []command) {
+func run_cmds(cmds []Command) {
 	order := 1
 	executed := true
 	var err error
@@ -162,19 +167,19 @@ func run_cmds(cmds []command) {
 		i := find_cmd_by_order(cmds, order)
 		if i > -1 {
 			executed = true
-			err := cmds[i].execute()
+			err := cmds[i].Execute()
 
 			//set up validation
 			v_order := 1
-			v_length := len(cmds[i].validates)
+			v_length := len(cmds[i].Validates)
 			v_validated := true
 			//loop through validations running them in the correct order
 			for v_index := 0; v_index < v_length && v_validated && err == nil; v_index++ {
 				v_validated = false
-				index := find_validator_by_order(cmds[i].validates, v_order)
+				index := find_validator_by_order(cmds[i].Validates, v_order)
 				if index > -1 {
 					v_validated = true
-					err = cmds[i].validates[index].execute()
+					err = cmds[i].Validates[index].Execute()
 				}
 				v_order++
 			}
@@ -382,5 +387,6 @@ func main() {
 	http.HandleFunc("/env", get_env)
 	http.HandleFunc("/command", cmd_handler)
 	log.Println("Starting server.")
+	log.Println("Listening on port " + env.Port)
 	log.Fatal(http.ListenAndServe(env.Port, nil))
 }
