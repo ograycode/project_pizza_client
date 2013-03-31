@@ -125,6 +125,25 @@ func (self *Validate_command) Execute() error {
 	return err
 }
 
+//Handles the server registering with the client
+func register_handler(rw http.ResponseWriter, req *http.Request) {
+	decoder := json.NewDecoder(req.Body)
+	var config configuration
+	err := decoder.Decode(&config)
+	response := "OK"
+	if err != nil {
+		log.Println("Error reading server registration request: " + err.Error())
+		response = err.Error()
+		rw.Write([]byte(response))
+	} else {
+		app_config.Master_server = config.Master_server
+		app_config.Registered = config.Registered
+		app_config.Uuid = config.Uuid
+		app_config.save()
+		log.Println("Client registered with server")
+	}
+}
+
 //Recieves commands from the server and kicks off the executing them
 func cmd_handler(rw http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
@@ -400,6 +419,7 @@ func main() {
 	log.Println("Setting up server.")
 	http.HandleFunc("/env", get_env)
 	http.HandleFunc("/command", cmd_handler)
+	http.HandleFunc("/register", register_handler)
 	log.Println("Starting server.")
 	log.Println("Listening on port " + env.Port)
 	log.Fatal(http.ListenAndServe(env.Port, nil))
