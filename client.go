@@ -301,6 +301,13 @@ func get_env(rw http.ResponseWriter, req *http.Request) {
 }
 
 func load_configuration() error {
+	//Setup environmental info
+	log.Println("Retrieving environmental information.")
+	env.Info = os.Environ()
+	env.OS = runtime.GOOS
+	env.Port = app_config.port
+	env.Version = "0.0.1"
+
 	bytes, err := ioutil.ReadFile("app.confg")
 	if err == nil {
 		err = json.Unmarshal(bytes, &app_config)
@@ -366,17 +373,10 @@ func retry_registering_with_server() {
 func main() {
 
 	log.Println("Loading configuration")
-	env.Info = os.Environ()
-	env.OS = runtime.GOOS
 	err := load_configuration()
 	if err != nil {
 		log.Fatalf("Error loading configuration data: %s", err.Error())
 	}
-
-	//Setup environmental info
-	log.Println("Retrieving environmental information.")
-	env.Port = app_config.port
-	env.Version = "0.0.1"
 
 	register_with_server_if_needed()
 
