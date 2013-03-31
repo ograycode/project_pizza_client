@@ -27,18 +27,27 @@ type _env struct {
 }
 
 type configuration struct {
-	master_server     string
-	port              string
-	terminal_location string
-	terminal_flags    string
-	uuid              string
-	registered        bool
+	Master_server     string
+	Port              string
+	Terminal_location string
+	Terminal_flags    string
+	Uuid              string
+	Registered        bool
 }
 
 //Saves the current configuration, over-writing what was present
 func (self *configuration) save() error {
-	j, _ := json.Marshal(self)
-	return ioutil.WriteFile("app.confg", j, os.ModePerm)
+	j, err := json.Marshal(self)
+	if err != nil {
+		log.Println("Error converting configuration to json: " + err.Error())
+		return err
+	}
+	err = ioutil.WriteFile("app.confg", j, os.ModePerm)
+	if err != nil {
+		log.Println("Error saving configuration data: " + err.Error())
+		return err
+	}
+	return err
 }
 
 //Message received from server
@@ -193,15 +202,15 @@ func run_cmds(cmds []Command) {
 //Sends a pre-formatted message to teh server
 func post_json_to_server(url string, body string) error {
 	r_body := strings.NewReader(body)
-	http.Post("url", "json", r_body)
-	return nil
+	_, err := http.Post(url, "text/json", r_body)
+	return err
 }
 
 //Sends a report to the server regarding executing commands
 func post_message_to_server(url string, msg message) error {
 	j_msg, _ := json.Marshal(msg)
-	http.Post("url", "json", bytes.NewReader(j_msg))
-	return nil
+	_, err := http.Post("url", "text/json", bytes.NewReader(j_msg))
+	return err
 }
 
 //Download a file
@@ -266,8 +275,8 @@ func download_file(file_name string, url string, destination string) error {
 func execute_command(cmd string) (error, string) {
 	var error_string string
 	error_string = ""
-	ex := exec.Command(app_config.terminal_location,
-		app_config.terminal_flags,
+	ex := exec.Command(app_config.Terminal_location,
+		app_config.Terminal_flags,
 		cmd)
 	//pipe stderr
 	stderr, err := ex.StderrPipe()
@@ -305,7 +314,7 @@ func load_configuration() error {
 	log.Println("Retrieving environmental information.")
 	env.Info = os.Environ()
 	env.OS = runtime.GOOS
-	env.Port = app_config.port
+	env.Port = app_config.Port
 	env.Version = "0.0.1"
 
 	bytes, err := ioutil.ReadFile("app.confg")
@@ -318,45 +327,50 @@ func load_configuration() error {
 
 	//set defaults if missing
 	if env.OS == "linux" {
-		if app_config.terminal_location == "" {
-			app_config.terminal_location = "/bin/sh"
+		if app_config.Terminal_location == "" {
+			app_config.Terminal_location = "/bin/sh"
 		}
-		app_config.terminal_flags = "-c"
+		app_config.Terminal_flags = "-c"
 	} else {
 		//pray we are on windows, for now
-		if app_config.terminal_location == "" {
-			app_config.terminal_location = "C:\\Windows\\System32\\cmd.exe"
+		if app_config.Terminal_location == "" {
+			app_config.Terminal_location = "C:\\Windows\\System32\\cmd.exe"
 		}
-		app_config.terminal_flags = "/c"
+		app_config.Terminal_flags = "/c"
 	}
 
-	if app_config.port == "" {
-		app_config.port = ":8082"
-		env.Port = app_config.port
+	if app_config.Port == "" {
+		app_config.Port = ":8082"
+		env.Port = app_config.Port
 	}
 	return nil
 }
 
 //Checks in with the server
 func check_in() {
-	server := app_config.master_server + "/clients/checkin"
-	post_json_to_server(server, "{\"status\": \"OK\", \"uuid\": \""+app_config.uuid+"\"}")
+	server := app_config.Master_server + "/clients/checkin"
+	post_json_to_server(server, "{\"status\": \"OK\", \"uuid\": \""+app_config.Uuid+"\"}")
 	time.Sleep(1 * time.Hour)
 	check_in()
 }
 
 //Registers with the server
 func register_with_server_if_needed() {
-	if !app_config.registered {
+	if !app_config.Registered {
 		log.Println("Registering with server")
-		server := app_config.master_server + "/clients/register"
-		err := post_json_to_server(server, "body")
+		server := app_config.Master_server + "/clients/register"
+		info := strings.Join(env.Info, "}, {")
+		info = "[{" + info + "}]"
+		err := post_json_to_server(server, "{\"status\": \"OK\","+
+			" \"uuid\": \""+app_config.Uuid+"\","+
+			" \"env\": \""+info+"\","+
+			" \"port\": \""+env.Port+"\"}")
 		if err != nil {
-			app_config.registered = false
-			log.Println("Failed to register with server: %s", err.Error())
+			app_config.Registered = false
+			log.Println("Failed to register with server: " + err.Error())
 			go retry_registering_with_server()
 		} else {
-			app_config.registered = true
+			app_config.Registered = true
 			app_config.save()
 		}
 	}

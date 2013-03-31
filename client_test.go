@@ -21,10 +21,10 @@ func Test_load_configuration(t *testing.T) {
 	err := load_configuration()
 	if err != nil {
 		t.Logf("Failed to load configuration: %s", err)
-		t.Logf("app_config.terminal_location: %s", app_config.terminal_location)
-		t.Logf("app_config.terminal_flags: %s", app_config.terminal_flags)
-		t.Logf("app_config.port: %s", app_config.port)
-		t.Logf("app_config.master_server: %s", app_config.master_server)
+		t.Logf("app_config.terminal_location: %s", app_config.Terminal_location)
+		t.Logf("app_config.terminal_flags: %s", app_config.Terminal_flags)
+		t.Logf("app_config.port: %s", app_config.Port)
+		t.Logf("app_config.master_server: %s", app_config.Master_server)
 	}
 }
 
@@ -124,4 +124,10 @@ func Test_find_by_order(t *testing.T) {
 		t.Errorf("Expected %i got %i", expected_position, position)
 	}
 
+}
+
+//Tests configuration.save()
+func Test_configuration_save(t *testing.T) {
+	app_config.Uuid = "test_uuid"
+	app_config.save()
 }
