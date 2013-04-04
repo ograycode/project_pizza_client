@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ograycode/project_pizza_client.png?branch=master)](https://travis-ci.org/ograycode/project_pizza_client)
+
 # Project Pizza #
 
 Project Pizza is a simple way to remotely execute commands on any box without additional dependencies. 
